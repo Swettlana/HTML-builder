@@ -6,7 +6,7 @@ fs.readdir(pathFile, { withFileTypes: true }, (err, arrayFiles) => {
   else {
     const files = arrayFiles.filter((file) => file.isFile());
     files.forEach((el) => {
-      const pathEl = path.join(pathFile, `/${el.name}`);
+      const pathEl = path.join(pathFile, el.name);
       fs.stat(pathEl, (err, stats) => {
         if (err) {
           throw Error();
