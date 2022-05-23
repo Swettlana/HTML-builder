@@ -1,44 +1,35 @@
 const fs = require("fs");
 const path = require("path");
-
 const pathTemplate = path.join(__dirname, "template.html");
 const pathProject = path.join(__dirname, "project-dist");
-const pathIndexInProject = path.join(__dirname, "project-dist", "index.html");
+const pathIndex = path.join(pathProject, "index.html");
 const pathStyles = path.join(__dirname, "styles");
-const pathForAssets = path.join(__dirname, "assets");
-const pathForAssetsCopy = path.join(__dirname, "project-dist", "assets");
-
+const pathAssetsFrom = path.join(__dirname, "assets");
+const pathAssetsTo = path.join(pathProject, "assets");
 const fileNameStyles = "style.css";
 const regexp = /{{[a-z]+}}/g;
 
-async function getTags() {
-  const template = await fs.promises.readFile(pathTemplate, "utf-8");
-  const tagsName = template.match(regexp).map((str) => {
-    return str.substring(2, str.length - 2) + ".html";
-  });
-  return tagsName;
-}
-
-async function createFolderProjectWithTemplate() {
+async function createProjectFolder() {
   await fs.promises.rm(pathProject, { recursive: true, force: true }, () => {});
   fs.mkdir(pathProject, { recursive: true }, () => {});
-  fs.copyFile(pathTemplate, pathIndexInProject, () => {});
+  fs.copyFile(pathTemplate, pathIndex, () => {});
 }
 
-async function changeIndexHtml() {
-  let tags = await getTags();
-  for (let name of tags) {
+async function changeTemplate() {
+  const template = await fs.promises.readFile(pathTemplate, "utf-8");
+  const tagsName = template.match(regexp);
+  for (let name of tagsName) {
     const tagContent = await fs.promises.readFile(
-      path.join(__dirname, "components", `${name}`),
+      path.join(
+        __dirname,
+        "components",
+        `${name.slice(2, name.length - 2) + ".html"}`
+      ),
       "utf-8"
     );
-    let indexHtml = await fs.promises.readFile(pathIndexInProject, "utf-8");
-    let nameEl = `{{${name.substring(0, name.length - 5)}}}`;
-    let changeIndex = indexHtml.replace(nameEl, tagContent);
-    await fs.promises.writeFile(
-      path.join(__dirname, "project-dist", "index.html"),
-      changeIndex
-    );
+    let indexHtml = await fs.promises.readFile(pathIndex, "utf-8");
+    let changeIndex = indexHtml.replace(name, tagContent);
+    await fs.promises.writeFile(pathIndex, changeIndex);
   }
 }
 
@@ -62,31 +53,25 @@ function createStyles() {
 
 async function copyAssets() {
   await fs.promises.rm(
-    pathForAssetsCopy,
+    pathAssetsTo,
     { recursive: true, force: true },
     () => {}
   );
-  fs.mkdir(pathForAssetsCopy, { recursive: true }, () => {});
-  fs.readdir(pathForAssets, { withFileTypes: true }, (err, dir) => {
+  fs.mkdir(pathAssetsTo, { recursive: true }, () => {});
+  fs.readdir(pathAssetsFrom, { withFileTypes: true }, (err, dir) => {
     dir.forEach((folder) => {
       fs.mkdir(
-        path.join(__dirname, "project-dist", "assets", folder.name),
+        path.join(pathAssetsTo, folder.name),
         { recursive: true },
         () => {
           fs.readdir(
-            path.join(__dirname, "assets", folder.name),
+            path.join(pathAssetsFrom, folder.name),
             { withFileTypes: true },
             (err, files) => {
               files.forEach((file) => {
                 fs.copyFile(
-                  path.join(__dirname, "assets", folder.name, file.name),
-                  path.join(
-                    __dirname,
-                    "project-dist",
-                    "assets",
-                    folder.name,
-                    file.name
-                  ),
+                  path.join(pathAssetsFrom, folder.name, file.name),
+                  path.join(pathAssetsTo, folder.name, file.name),
                   () => {}
                 );
               });
@@ -99,8 +84,8 @@ async function copyAssets() {
 }
 
 async function createSite() {
-  await createFolderProjectWithTemplate();
-  changeIndexHtml();
+  await createProjectFolder();
+  changeTemplate();
   createStyles();
   copyAssets();
 }
